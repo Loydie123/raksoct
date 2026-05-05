@@ -42,9 +42,7 @@ class ProcessServiceRequestImport implements ShouldQueue
         ];
 
         try {
-            $excel = PHPExcel_IOFactory::load($this->filePath);
-            $sheet = $excel->getActiveSheet();
-            $rows = $sheet->toArray();
+            $rows = $this->loadFile($this->filePath);
 
             // Skip header row
             $dataRows = array_slice($rows, 1);
@@ -181,6 +179,31 @@ class ProcessServiceRequestImport implements ShouldQueue
             'error' => null,
             'new_student' => $newStudent,
         ];
+    }
+
+    protected function loadFile(string $filePath): array
+    {
+        if (!file_exists($filePath)) {
+            throw new \Exception("File not found: {$filePath}");
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        if ($extension === 'csv') {
+            $rows = [];
+            $handle = fopen($filePath, 'r');
+            if ($handle === false) {
+                throw new \Exception("Cannot open file: {$filePath}");
+            }
+            while (($data = fgetcsv($handle)) !== false) {
+                $rows[] = $data;
+            }
+            fclose($handle);
+            return $rows;
+        }
+
+        // Excel files - note: PHPExcel is deprecated for PHP 8+
+        throw new \Exception("Excel files not supported. Please use CSV format.");
     }
 
     protected function parseDate(string $dateString): string

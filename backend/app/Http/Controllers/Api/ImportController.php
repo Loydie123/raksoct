@@ -21,13 +21,18 @@ class ImportController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls|max:10240', // Max 10MB
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // Max 10MB
         ]);
 
         $file = $request->file('file');
         $filename = $file->getClientOriginalName();
-        $path = $file->store('imports', 'local');
-        $fullPath = storage_path('app/' . $path);
+        
+        // Generate unique filename
+        $storedFilename = uniqid() . '_' . $filename;
+        $fullPath = storage_path('app' . DIRECTORY_SEPARATOR . 'imports' . DIRECTORY_SEPARATOR . $storedFilename);
+        
+        // Manually move the file
+        $file->move(storage_path('app' . DIRECTORY_SEPARATOR . 'imports'), $storedFilename);
 
         // Create import log
         $importLog = ImportLog::create([
