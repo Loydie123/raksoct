@@ -8,13 +8,13 @@ A web-based Student Services Management System built with Laravel 12 (Backend AP
 - **Framework:** Laravel 12
 - **Authentication:** Laravel Sanctum (Token-based API auth)
 - **Database:** SQLite (development) / MySQL (production ready)
-- **Queue:** Laravel Queue (for async Excel imports)
-- **Excel Processing:** PHPExcel via maatwebsite/excel
+- **Queue:** Laravel Queue (for async file imports)
 
 ### Frontend
 - **Framework:** React 19 with TypeScript
 - **Build Tool:** Vite
-- **Styling:** Tailwind CSS
+- **Styling:** Tailwind CSS v4
+- **State Management:** React Query (@tanstack/react-query)
 - **HTTP Client:** Axios
 - **Routing:** React Router v7
 
@@ -53,10 +53,26 @@ raksoct/
 └── frontend/                # React SPA
     └── src/
         ├── api/
+        │   ├── axios.ts              # Axios instance config
+        │   └── services/             # API service layer
+        │       ├── auth.service.ts
+        │       ├── student.service.ts
+        │       ├── service-request.service.ts
+        │       └── import.service.ts
         ├── components/
-        ├── context/
-        ├── pages/
-        └── types/
+        │   ├── ui/                   # Reusable UI components
+        │   ├── students/             # Student-specific components
+        │   ├── service-requests/     # Service request components
+        │   └── import/               # Import module components
+        ├── constants/                # App constants & enums
+        ├── context/                  # React context providers
+        ├── guards/                   # Route guards (Auth, Role, Guest)
+        ├── hooks/                    # Custom React hooks
+        ├── layouts/                  # Page layouts
+        ├── lib/                      # Third-party library configs
+        ├── pages/                    # Page components
+        ├── types/                    # TypeScript interfaces
+        └── utils/                    # Utility functions
 ```
 
 ## Architecture Explanation
@@ -84,13 +100,40 @@ raksoct/
    - `ServiceRequestPolicy` - Only admin can delete requests
 
 5. **Jobs** (`app/Jobs/`)
-   - `ProcessServiceRequestImport` - Async Excel processing
+   - `ProcessServiceRequestImport` - Async CSV processing
    - Prevents blocking during large file uploads
+
+### Frontend Architecture
+
+1. **API Services Layer** (`src/api/services/`)
+   - Centralized API calls per domain
+   - Type-safe request/response handling
+   - Separation from UI logic
+
+2. **Custom Hooks** (`src/hooks/`)
+   - React Query integration for data fetching
+   - Automatic caching and invalidation
+   - Loading and error states
+
+3. **Guards** (`src/guards/`)
+   - `AuthGuard` - Requires authentication
+   - `RoleGuard` - Requires specific role
+   - `GuestGuard` - Only for unauthenticated users
+
+4. **Constants** (`src/constants/`)
+   - Centralized enums and config values
+   - Type-safe status and role definitions
+   - No magic strings in components
+
+5. **Utils** (`src/utils/`)
+   - Reusable formatters (date, text)
+   - Validators (email, file)
+   - Helper functions
 
 ### Concurrency Handling
 
 1. **Queue-based Import Processing**
-   - Excel imports are processed asynchronously via Laravel Queue
+   - CSV imports are processed asynchronously via Laravel Queue
    - User gets immediate response, processing happens in background
    - Import status can be polled (processing/completed/failed)
 
@@ -121,7 +164,7 @@ raksoct/
    - Only pending requests can be approved/rejected
    - Only admin can delete requests
 
-4. **Excel Import Rules**
+4. **Import Rules**
    - Missing student number → Skip row
    - Non-existent student → Auto-create with `is_imported = true`
    - Inactive student → Skip row
@@ -153,6 +196,9 @@ php artisan key:generate
 # Run migrations with seed data
 php artisan migrate:fresh --seed
 
+# Create imports directory
+mkdir storage/app/imports
+
 # Start the development server
 php artisan serve
 ```
@@ -165,11 +211,14 @@ cd frontend
 # Install dependencies
 npm install
 
+# Copy environment file
+cp .env.example .env
+
 # Start development server
 npm run dev
 ```
 
-### Running Queue Worker (for Excel imports)
+### Running Queue Worker (for imports)
 
 ```bash
 cd backend
@@ -207,23 +256,37 @@ php artisan queue:work
 - `POST /api/service-requests/{id}/reject` - Reject request
 
 ### Import
-- `POST /api/import/upload` - Upload Excel file (admin only)
+- `POST /api/import/upload` - Upload CSV file (admin only)
 - `GET /api/import/logs` - List import logs
-- `GET /api/import/logs/{id}` - Get import log details
+
+## Environment Variables
+
+### Backend (.env)
+```
+APP_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:5173
+DB_CONNECTION=sqlite
+QUEUE_CONNECTION=database
+```
+
+### Frontend (.env)
+```
+VITE_API_URL=http://localhost:8000/api
+```
 
 ## Packages Used
 
 ### Backend (composer.json)
 - `laravel/framework` - Laravel 12 framework
 - `laravel/sanctum` - API token authentication
-- `maatwebsite/excel` - Excel file handling
 
 ### Frontend (package.json)
 - `react` - UI library
 - `react-router-dom` - Client-side routing
 - `axios` - HTTP client
-- `@tanstack/react-query` - Data fetching (optional)
+- `@tanstack/react-query` - Data fetching & caching
 - `tailwindcss` - Utility-first CSS
+- `@tailwindcss/vite` - Vite plugin for Tailwind v4
 
 ## License
 
